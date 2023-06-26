@@ -4,9 +4,16 @@ import traverse from "@babel/traverse";
 import { resolve } from "path";
 import ejs from "ejs";
 import { transformFromAst } from "babel-core";
+import { jsonLoader } from "./json-loader.js";
 
 //  全局的id
 let moduleId = 0;
+
+const webpackConfig = {
+  module: {
+    rules: [{ test: /\.json$/, use: jsonLoader }],
+  },
+};
 
 /**
  * 解析依赖
@@ -17,11 +24,24 @@ let moduleId = 0;
 function createAsset(filePath) {
   // * 1、获取文件的内容
 
-  const source = fs.readFileSync(filePath, {
+  let source = fs.readFileSync(filePath, {
     encoding: "utf-8",
   });
 
-  // console.log(source);
+  //  * loader的处理
+  const rules = webpackConfig?.module?.rules || [];
+  rules.forEach((rule) => {
+    const { test, use } = rule;
+
+    //  use可以是一个数组，注意是从右往左执行
+    const useArray = Array.isArray(use) ? use.reverse() : [use];
+
+    if (test.test(filePath)) {
+      useArray.forEach((loader) => {
+        source = loader(source);
+      });
+    }
+  });
 
   //  * 2、获取依赖关系
 
