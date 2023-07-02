@@ -1,10 +1,13 @@
 import fs from "fs";
 import parser from "@babel/parser";
 import traverse from "@babel/traverse";
-import { resolve } from "path";
+import path, { resolve } from "path";
 import ejs from "ejs";
 import { transformFromAst } from "babel-core";
-import { jsonLoader } from "./json-loader.js";
+import { SyncHook } from "tapable";
+
+import { jsonLoader } from "./loaders/json-loader.js";
+import { HtmlWebapckPlugin } from "./plugins/html-webpack-plugin/index.js";
 
 //  全局的id
 let moduleId = 0;
@@ -13,6 +16,12 @@ const webpackConfig = {
   module: {
     rules: [{ test: /\.json$/, use: jsonLoader }],
   },
+  plugins: [new HtmlWebapckPlugin({})],
+};
+
+//  钩子的类型
+const hooks = {
+  afterEmit: new SyncHook(["outputDir", "output"]),
 };
 
 /**
@@ -116,11 +125,25 @@ function createGraph(entry) {
 }
 
 /**
+ * 注册插件
+ */
+function initPlugins() {
+  const plugins = webpackConfig.plugins || [];
+
+  plugins.forEach((plugin) => {
+    plugin.apply(hooks);
+  });
+}
+
+/**
  * 通过构建出来的图，然后将数据注入到对应ejs模板，生成最后的文件
  *
  * @param {*[]} graph
  */
 function build(graph) {
+  //  注册插件
+  initPlugins();
+
   const template = fs.readFileSync("./bundle.ejs", {
     encoding: "utf-8",
   });
@@ -139,18 +162,19 @@ function build(graph) {
     data,
   });
 
-  // console.log(render);
-
-  const dirPath = "./dist";
+  const dirPath = path.resolve("./dist");
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath);
   }
 
-  const filePath = "./dist/bundle.js";
+  const filePath = dirPath + "/bundle.js";
   if (fs.existsSync(filePath)) {
     fs.rmSync(filePath);
   }
   fs.writeFileSync(filePath, render);
+
+  //  在emit之后，触发hooks
+  hooks.afterEmit.call(dirPath, "bundle.js");
 }
 
 const entryPath = "./example/entry.js";
