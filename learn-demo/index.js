@@ -6,8 +6,8 @@ import ejs from "ejs";
 import { transformFromAst } from "babel-core";
 import { SyncHook } from "tapable";
 
-import { jsonLoader } from "./loaders/json-loader.js";
-import { HtmlWebapckPlugin } from "./plugins/html-webpack-plugin/index.js";
+import { jsonLoader } from "../loaders/json-loader.js";
+import { HtmlWebapckPlugin } from "../plugins/html-webpack-plugin/index.js";
 
 //  全局的id
 let moduleId = 0;
@@ -21,7 +21,7 @@ const webpackConfig = {
 
 //  钩子的类型
 const hooks = {
-  afterEmit: new SyncHook(["outputDir", "output"]),
+  // afterEmit: new SyncHook(["outputDir", "output"]),
 };
 
 /**
@@ -174,7 +174,7 @@ function build(graph) {
   fs.writeFileSync(filePath, render);
 
   //  在emit之后，触发hooks
-  hooks.afterEmit.call(dirPath, "bundle.js");
+  // hooks.afterEmit.call(dirPath, "bundle.js");
 }
 
 const entryPath = "./example/entry.js";
